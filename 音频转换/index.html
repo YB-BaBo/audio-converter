@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f8f5">
+  <title>NCM 转 MP3 · 本地音乐转换器</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #18231f;
+      --muted: #748078;
+      --line: #e3e9e4;
+      --green: #16845b;
+      --green-dark: #116b49;
+      --green-pale: #eaf5ef;
+      --paper: #ffffff;
+      --bg: #f6f8f5;
+      --amber: #936111;
+      --red: #b54747;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background: radial-gradient(ellipse at 50% -20%, #e8f3eb 0%, transparent 54%), var(--bg);
+    }
+    .shell { width: min(900px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 56px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 62px; }
+    .brand { display: flex; align-items: center; gap: 11px; font-weight: 750; letter-spacing: -.02em; }
+    .brand-mark { width: 38px; height: 38px; border-radius: 13px; display: grid; place-items: center; color: #fff; background: var(--green); box-shadow: 0 6px 16px #16845b2b; }
+    .local-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; color: #526159; background: #ffffffa6; font-size: 12px; }
+    .local-pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #36a875; box-shadow: 0 0 0 3px #36a87520; }
+    .intro { text-align: center; margin-bottom: 28px; }
+    .eyebrow { color: var(--green); font-size: 12px; font-weight: 760; letter-spacing: .14em; text-transform: uppercase; }
+    h1 { margin: 12px 0 10px; font-size: clamp(31px, 5vw, 46px); line-height: 1.15; letter-spacing: -.045em; }
+    .subtitle { margin: 0 auto; max-width: 580px; color: var(--muted); font-size: 15px; line-height: 1.8; }
+    .card { padding: 26px; border: 1px solid #e3e9e4; border-radius: 22px; background: var(--paper); box-shadow: 0 16px 46px #2234290a; }
+    .dropzone { min-height: 228px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 27px 18px; border: 1.5px dashed #b9cabe; border-radius: 17px; background: linear-gradient(145deg, #f8fbf8, #f5f9f5); text-align: center; transition: .18s ease; cursor: pointer; }
+    .dropzone:hover, .dropzone.dragging { border-color: var(--green); background: #eff8f2; }
+    .dropzone:focus-visible { outline: 3px solid #16845b35; outline-offset: 3px; }
+    .upload-icon { display: grid; place-items: center; width: 54px; height: 54px; margin-bottom: 15px; border-radius: 17px; color: var(--green); background: var(--green-pale); }
+    .drop-title { margin: 0 0 6px; font-size: 16px; font-weight: 700; }
+    .drop-hint { color: var(--muted); font-size: 13px; }
+    .browse { margin-top: 16px; padding: 10px 16px; border: 0; border-radius: 10px; color: #fff; background: var(--green); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .browse:hover { background: var(--green-dark); }
+    input[type=file] { display: none; }
+    .section-head { display: flex; align-items: center; justify-content: space-between; margin: 23px 2px 10px; }
+    .section-title { font-size: 13px; font-weight: 730; }
+    .count { color: var(--muted); font-size: 12px; }
+    .file-list { display: grid; gap: 9px; }
+    .empty { padding: 15px 4px; color: #9aa49d; font-size: 13px; text-align: center; }
+    .file-row { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 12px 13px; border: 1px solid var(--line); border-radius: 13px; }
+    .file-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 11px; color: var(--green); background: #f0f6f1; }
+    .file-name { overflow: hidden; color: #2b3731; font-size: 13px; font-weight: 620; text-overflow: ellipsis; white-space: nowrap; }
+    .file-size { margin-top: 4px; color: var(--muted); font-size: 11px; }
+    .file-state { color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .file-state.success { color: var(--green); }
+    .file-state.error { color: var(--red); }
+    .remove { width: 30px; height: 30px; border: 0; border-radius: 8px; color: #849087; background: transparent; cursor: pointer; font-size: 17px; }
+    .remove:hover { color: var(--red); background: #fff1f1; }
+    .options { display: flex; align-items: flex-start; gap: 10px; margin: 17px 2px 0; color: #526159; font-size: 12px; line-height: 1.65; }
+    .options input { width: 15px; height: 15px; margin: 1px 0 0; accent-color: var(--green); }
+    .convert-row { display: flex; align-items: center; gap: 14px; margin-top: 20px; }
+    .convert { display: inline-flex; min-width: 157px; justify-content: center; align-items: center; gap: 9px; padding: 13px 20px; border: 0; border-radius: 11px; color: white; background: var(--green); font: inherit; font-size: 14px; font-weight: 730; cursor: pointer; transition: .15s ease; }
+    .convert:hover:not(:disabled) { background: var(--green-dark); transform: translateY(-1px); }
+    .convert:disabled { opacity: .45; cursor: not-allowed; }
+    .summary { color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .progress-wrap { display: none; margin-top: 18px; }
+    .progress-meta { display: flex; justify-content: space-between; margin-bottom: 8px; color: #66736b; font-size: 12px; }
+    .progress-track { height: 6px; overflow: hidden; border-radius: 10px; background: #edf1ed; }
+    .progress-bar { width: 0; height: 100%; border-radius: inherit; background: var(--green); transition: width .12s ease; }
+    .results { display: none; margin-top: 21px; padding-top: 20px; border-top: 1px solid var(--line); }
+    .result-list { display: grid; gap: 9px; margin-top: 11px; }
+    .result-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 13px; border-radius: 12px; background: #f6faf7; }
+    .result-info { min-width: 0; }
+    .result-name { overflow: hidden; font-size: 13px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+    .result-note { margin-top: 4px; color: var(--muted); font-size: 11px; }
+    .download { flex: 0 0 auto; padding: 8px 12px; border-radius: 9px; color: #fff; background: var(--green); text-decoration: none; font-size: 12px; font-weight: 700; }
+    .download:hover { background: var(--green-dark); }
+    .footnote { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 18px 3px 0; }
+    .footnote-item { display: flex; gap: 9px; color: #78847c; font-size: 11px; line-height: 1.65; }
+    .footnote-item svg { flex: 0 0 auto; margin-top: 2px; color: var(--green); }
+    .footer { margin-top: 24px; color: #9aa49d; font-size: 11px; line-height: 1.7; text-align: center; }
+    .toast { position: fixed; left: 50%; bottom: 24px; z-index: 5; max-width: calc(100vw - 28px); padding: 11px 15px; border-radius: 10px; color: white; background: #26332c; box-shadow: 0 8px 30px #0002; font-size: 13px; opacity: 0; transform: translate(-50%, 8px); pointer-events: none; transition: .2s; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    @media (max-width: 640px) {
+      .shell { width: min(100% - 22px, 560px); padding-top: 18px; }
+      .topbar { margin-bottom: 42px; }
+      .local-pill { padding: 7px 9px; font-size: 10px; }
+      .card { padding: 15px; border-radius: 18px; }
+      .dropzone { min-height: 205px; }
+      .file-row { grid-template-columns: 34px minmax(0,1fr) auto; gap: 9px; padding: 10px; }
+      .file-icon { width: 33px; height: 33px; }
+      .file-state { grid-column: 2; grid-row: 2; font-size: 11px; }
+      .remove { grid-column: 3; grid-row: 1 / span 2; }
+      .footnote { grid-template-columns: 1fr; gap: 9px; }
+      .convert-row { align-items: flex-start; flex-direction: column; gap: 9px; }
+      .convert { width: 100%; }
+      .summary { text-align: center; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M4 10v4M8 6v12M12 9v6M16 4v16M20 9v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </span>
+        <span>本地音乐工具</span>
+      </div>
+      <span class="local-pill">文件仅在本机处理</span>
+    </header>
+
+    <section class="intro">
+      <div class="eyebrow">简单 · 安全 · 本地转换</div>
+      <h1>NCM 转 MP3</h1>
+      <p class="subtitle">选择或拖入 NCM 文件，解密后即可下载。支持一次处理多个文件，音频不会上传到服务器。</p>
+    </section>
+
+    <section class="card" aria-label="NCM 转换工具">
+      <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="选择或拖入 NCM 文件">
+        <div class="upload-icon" aria-hidden="true">
+          <svg width="25" height="25" viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14.5v3A2.5 2.5 0 007.5 20h9a2.5 2.5 0 002.5-2.5v-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <p class="drop-title">将 .ncm 文件拖到这里</p>
+        <div class="drop-hint">或从设备中选择，可一次添加多个文件</div>
+        <button class="browse" id="browseBtn" type="button">选择 NCM 文件</button>
+        <input id="fileInput" type="file" accept=".ncm,audio/ncm" multiple>
+      </div>
+
+      <div class="section-head">
+        <span class="section-title">待转换文件</span>
+        <span class="count" id="fileCount">0 个文件</span>
+      </div>
+      <div class="file-list" id="fileList"><div class="empty">还没有添加文件</div></div>
+
+      <label class="options">
+        <input id="transcodeFlac" type="checkbox" checked>
+        <span>如果音轨是 FLAC，尝试转成高音质 MP3（转码组件随网页提供；音频仍只在本机处理）</span>
+      </label>
+
+      <div class="convert-row">
+        <button class="convert" id="convertBtn" type="button" disabled>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 5.5v13l10-6.5-10-6.5z" fill="currentColor"/></svg>
+          开始转换
+        </button>
+        <div class="summary" id="summary">添加文件后即可开始</div>
+      </div>
+
+      <div class="progress-wrap" id="progressWrap" aria-live="polite">
+        <div class="progress-meta"><span id="progressLabel">正在准备…</span><span id="progressPercent">0%</span></div>
+        <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+      </div>
+
+      <div class="results" id="results">
+        <div class="section-title">转换结果</div>
+        <div class="result-list" id="resultList"></div>
+      </div>
+    </section>
+
+    <div class="footnote">
+      <div class="footnote-item"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 3 5 6v5c0 4.7 2.8 8.2 7 10 4.2-1.8 7-5.3 7-10V6l-7-3z" stroke="currentColor" stroke-width="1.7"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>隐私保护：NCM 文件直接在浏览器内解密，不会上传。</span></div>
+      <div class="footnote-item"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>MP3 音轨会直接解密；FLAC 音轨转 MP3 使用本地转码组件。</span></div>
+    </div>
+    <div class="footer">请仅转换你有权使用的音频文件。转换后的文件由你自行保存。</div>
+  </main>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    (() => {
+      "use strict";
+      const MAGIC = [0x43, 0x54, 0x45, 0x4e, 0x46, 0x44, 0x41, 0x4d]; // CTENFDAM
+      const CORE_KEY = new Uint8Array([0x68,0x7a,0x48,0x52,0x41,0x6d,0x73,0x6f,0x35,0x6b,0x49,0x6e,0x62,0x61,0x78,0x57]);
+      const CHUNK_SIZE = 1024 * 1024;
+      const input = document.getElementById("fileInput");
+      const zone = document.getElementById("dropzone");
+      const browseBtn = document.getElementById("browseBtn");
+      const fileList = document.getElementById("fileList");
+      const fileCount = document.getElementById("fileCount");
+      const convertBtn = document.getElementById("convertBtn");
+      const summary = document.getElementById("summary");
+      const progressWrap = document.getElementById("progressWrap");
+      const progressLabel = document.getElementById("progressLabel");
+      const progressPercent = document.getElementById("progressPercent");
+      const progressBar = document.getElementById("progressBar");
+      const results = document.getElementById("results");
+      const resultList = document.getElementById("resultList");
+      const transcodeFlacOption = document.getElementById("transcodeFlac");
+      const toast = document.getElementById("toast");
+      let entries = [];
+      let busy = false;
+      let ffmpegInstance = null;
+      let toastTimer;
+      const liveUrls = [];
+
+      function tell(message) {
+        toast.textContent = message;
+        toast.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove("show"), 3100);
+      }
+      function humanSize(bytes) {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+      }
+      function setProgress(label, percent) {
+        const p = Math.max(0, Math.min(100, Math.round(percent)));
+        progressLabel.textContent = label;
+        progressPercent.textContent = `${p}%`;
+        progressBar.style.width = `${p}%`;
+      }
+      function addFiles(list) {
+        const incoming = [...list].filter(f => /\.ncm$/i.test(f.name));
+        if (!incoming.length && list.length) { tell("请选择 .ncm 文件"); return; }
+        const known = new Set(entries.map(e => `${e.file.name}|${e.file.size}|${e.file.lastModified}`));
+        let added = 0;
+        for (const file of incoming) {
+          const key = `${file.name}|${file.size}|${file.lastModified}`;
+          if (known.has(key)) continue;
+          known.add(key);
+          entries.push({ id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`, file, state: "ready", message: "等待转换" });
+          added++;
+        }
+        if (incoming.length && !added) tell("这些文件已经在列表中");
+        renderFiles();
+      }
+      function renderFiles() {
+        fileCount.textContent = `${entries.length} 个文件`;
+        convertBtn.disabled = busy || !entries.some(e => e.state === "ready");
+        if (!entries.length) {
+          fileList.innerHTML = '<div class="empty">还没有添加文件</div>';
+          summary.textContent = "添加文件后即可开始";
+          return;
+        }
+        fileList.replaceChildren();
+        for (const entry of entries) {
+          const row = document.createElement("div");
+          row.className = "file-row";
+          const icon = document.createElement("div");
+          icon.className = "file-icon";
+          icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M7 3.8h6.5L19 9v10.2a1.8 1.8 0 0 1-1.8 1.8H7a2 2 0 0 1-2-2V5.8a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="1.6"/><path d="M13 4v5h5M8 14h8M8 17h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+          const details = document.createElement("div");
+          const name = document.createElement("div"); name.className = "file-name"; name.textContent = entry.file.name; name.title = entry.file.name;
+          const size = document.createElement("div"); size.className = "file-size"; size.textContent = humanSize(entry.file.size);
+          details.append(name, size);
+          const state = document.createElement("div"); state.className = `file-state ${entry.state === "success" ? "success" : entry.state === "error" ? "error" : ""}`; state.textContent = entry.message;
+          const remove = document.createElement("button"); remove.className = "remove"; remove.type = "button"; remove.textContent = "×"; remove.setAttribute("aria-label", `移除 ${entry.file.name}`);
+          remove.disabled = busy;
+          remove.addEventListener("click", () => { entries = entries.filter(e => e.id !== entry.id); renderFiles(); });
+          row.append(icon, details, state, remove);
+          fileList.append(row);
+        }
+        const pending = entries.filter(e => e.state === "ready").length;
+        const success = entries.filter(e => e.state === "success").length;
+        const failed = entries.filter(e => e.state === "error").length;
+        summary.textContent = pending ? `${pending} 个文件准备就绪` : `完成：${success} 个成功，${failed} 个失败`;
+      }
+      browseBtn.addEventListener("click", event => { event.stopPropagation(); input.click(); });
+      zone.addEventListener("click", event => { if (event.target !== browseBtn) input.click(); });
+      zone.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); input.click(); } });
+      input.addEventListener("change", () => { addFiles(input.files); input.value = ""; });
+      for (const eventName of ["dragenter", "dragover"]) zone.addEventListener(eventName, event => { event.preventDefault(); zone.classList.add("dragging"); });
+      for (const eventName of ["dragleave", "drop"]) zone.addEventListener(eventName, event => { event.preventDefault(); zone.classList.remove("dragging"); });
+      zone.addEventListener("drop", event => addFiles(event.dataTransfer.files));
+      document.addEventListener("dragover", e => e.preventDefault());
+      document.addEventListener("drop", e => e.preventDefault());
+
+      function makeReader(file) {
+        let pos = 0;
+        return {
+          get position() { return pos; },
+          async bytes(n, label) {
+            if (!Number.isSafeInteger(n) || n < 0 || pos + n > file.size) throw new Error(`文件不完整：读取${label}时长度不足。`);
+            const bytes = new Uint8Array(await file.slice(pos, pos + n).arrayBuffer());
+            pos += n;
+            return bytes;
+          },
+          async skip(n, label) { await this.bytes(n, label); },
+          async u32(label) {
+            const b = await this.bytes(4, label);
+            return (b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 24)) >>> 0;
+          }
+        };
+      }
+      async function decryptHeader(file) {
+        const r = makeReader(file);
+        const magic = await r.bytes(8, "文件头");
+        if (!MAGIC.every((b, i) => magic[i] === b)) throw new Error("这不是有效的 NCM 文件（文件头不匹配）。");
+        await r.skip(2, "版本号");
+        const keyLen = await r.u32("密钥长度");
+        if (!keyLen || keyLen > 1024 * 1024 || keyLen % 16) throw new Error("NCM 密钥区长度异常，文件可能已损坏。");
+        const encrypted = await r.bytes(keyLen, "密钥区");
+        for (let i = 0; i < encrypted.length; i++) encrypted[i] ^= 0x64;
+        let keyPlain;
+        try {
+          const cryptoKey = await crypto.subtle.importKey("raw", CORE_KEY, { name: "AES-CBC" }, false, ["decrypt", "encrypt"]);
+          // Web Crypto exposes CBC rather than ECB and validates PKCS#7 on the last block.
+          // Append a synthetic CBC block that decrypts to 16 bytes of padding, so the
+          // original ECB blocks can be recovered and un-chained below without losing data.
+          const terminal = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-CBC", iv: encrypted.slice(-16) }, cryptoKey, new Uint8Array(16).fill(16)));
+          const paddedCipher = new Uint8Array(encrypted.length + 16);
+          paddedCipher.set(encrypted); paddedCipher.set(terminal.slice(0, 16), encrypted.length);
+          keyPlain = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-CBC", iv: new Uint8Array(16) }, cryptoKey, paddedCipher));
+        } catch (_) { throw new Error("无法解开 NCM 密钥，文件可能已损坏或格式不受支持。"); }
+        // AES-CBC over the full ECB ciphertext yields D(C[i]) XOR C[i-1]; undo CBC chaining to recover AES-ECB plaintext.
+        for (let i = 16; i < keyPlain.length; i += 16) {
+          for (let j = 0; j < 16 && i + j < keyPlain.length; j++) keyPlain[i + j] ^= encrypted[i - 16 + j];
+        }
+        const padding = keyPlain[keyPlain.length - 1];
+        if (!padding || padding > 16 || keyPlain.slice(-padding).some(byte => byte !== padding)) throw new Error("无法解开 NCM 密钥，文件可能已损坏或格式不受支持。");
+        keyPlain = keyPlain.slice(0, -padding);
+        if (keyPlain.length <= 17) throw new Error("NCM 密钥数据为空或不完整。");
+        const audioKey = keyPlain.slice(17);
+        if (!audioKey.length) throw new Error("NCM 音频密钥为空。");
+        const metadataLen = await r.u32("元数据长度");
+        if (metadataLen > 64 * 1024 * 1024) throw new Error("NCM 元数据长度异常，已停止处理。");
+        await r.skip(metadataLen, "元数据");
+        await r.skip(5, "CRC/间隔区");
+        const coverFrameLen = await r.u32("封面区长度");
+        const coverDataLen = await r.u32("封面图片长度");
+        if (coverDataLen > coverFrameLen || coverFrameLen > 128 * 1024 * 1024) throw new Error("NCM 封面区长度异常，文件可能已损坏。");
+        await r.skip(coverFrameLen, "封面数据");
+        const box = Array.from({ length: 256 }, (_, i) => i);
+        let last = 0, keyOffset = 0;
+        for (let i = 0; i < 256; i++) {
+          const swap = box[i];
+          const c = (swap + last + audioKey[keyOffset]) & 255;
+          keyOffset = (keyOffset + 1) % audioKey.length;
+          box[i] = box[c]; box[c] = swap; last = c;
+        }
+        return { audioOffset: r.position, box };
+      }
+      async function decryptAudio(file, header, progressCb) {
+        if (header.audioOffset >= file.size) throw new Error("音频数据为空。");
+        const chunks = [];
+        const total = file.size - header.audioOffset;
+        for (let offset = header.audioOffset; offset < file.size; offset += CHUNK_SIZE) {
+          const bytes = new Uint8Array(await file.slice(offset, Math.min(file.size, offset + CHUNK_SIZE)).arrayBuffer());
+          for (let i = 0; i < bytes.length; i++) {
+            const j = (i + 1) & 255;
+            bytes[i] ^= header.box[(header.box[j] + header.box[(header.box[j] + j) & 255]) & 255];
+          }
+          chunks.push(bytes);
+          progressCb((offset + bytes.length - header.audioOffset) / total);
+        }
+        return new Blob(chunks);
+      }
+      async function loadScript(src) {
+        if (window.FFmpegWASM) return;
+        await new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = src; script.crossOrigin = "anonymous";
+          script.onload = resolve;
+          script.onerror = () => reject(new Error("加载 FLAC 转码组件失败，请确认网页资源完整后重试。"));
+          document.head.appendChild(script);
+        });
+      }
+      async function fetchBlobURL(url, mime) {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("转码组件读取失败，请检查站点资源文件。");
+        return URL.createObjectURL(new Blob([await response.arrayBuffer()], { type: mime }));
+      }
+      async function getFFmpeg() {
+        if (ffmpegInstance) return ffmpegInstance;
+        setProgress("正在加载本地 FLAC 转码组件（约 30 MB）…", 0);
+        const base = "./assets/ffmpeg";
+        await loadScript(`${base}/ffmpeg.js`);
+        const FFmpeg = window.FFmpegWASM && window.FFmpegWASM.FFmpeg;
+        if (!FFmpeg) throw new Error("转码组件初始化失败。可取消 FLAC 转码后下载解密后的 FLAC 文件。");
+        const ff = new FFmpeg();
+        ff.on("progress", ({ progress }) => setProgress("正在转码 FLAC → MP3…", Math.max(0, Math.min(99, progress * 100))));
+        const coreURL = await fetchBlobURL(`${base}/ffmpeg-core.js`, "text/javascript");
+        const wasmURL = await fetchBlobURL(`${base}/ffmpeg-core.wasm`, "application/wasm");
+        liveUrls.push(coreURL, wasmURL);
+        await ff.load({ coreURL, wasmURL });
+        ffmpegInstance = ff;
+        return ff;
+      }
+      async function transcodeToMp3(blob) {
+        const ff = await getFFmpeg();
+        const baseName = `source_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+        const inputName = `${baseName}.flac`, outputName = `${baseName}.mp3`;
+        await ff.writeFile(inputName, new Uint8Array(await blob.arrayBuffer()));
+        const args = ["-i", inputName, "-vn", "-c:a", "libmp3lame", "-q:a", "2", "-map_metadata", "0", "-id3v2_version", "3", outputName];
+        const exitCode = await ff.exec(args);
+        if (exitCode !== 0) throw new Error("FFmpeg 转码失败。");
+        const data = await ff.readFile(outputName);
+        await ff.deleteFile(inputName).catch(() => {});
+        await ff.deleteFile(outputName).catch(() => {});
+        return new Blob([data], { type: "audio/mpeg" });
+      }
+      function uniqueFilename(name) {
+        const used = new Set([...resultList.querySelectorAll("a.download")].map(a => a.download.toLowerCase()));
+        if (!used.has(name.toLowerCase())) return name;
+        const dot = name.lastIndexOf(".");
+        const stem = dot >= 0 ? name.slice(0, dot) : name;
+        const ext = dot >= 0 ? name.slice(dot) : "";
+        let n = 1;
+        while (used.has(`${stem}_${n}${ext}`.toLowerCase())) n++;
+        return `${stem}_${n}${ext}`;
+      }
+      function addResult(name, blob, note) {
+        const outputName = uniqueFilename(name);
+        const url = URL.createObjectURL(blob); liveUrls.push(url);
+        const row = document.createElement("div"); row.className = "result-row";
+        const info = document.createElement("div"); info.className = "result-info";
+        const title = document.createElement("div"); title.className = "result-name"; title.textContent = outputName; title.title = outputName;
+        const desc = document.createElement("div"); desc.className = "result-note"; desc.textContent = `${note} · ${humanSize(blob.size)}`;
+        info.append(title, desc);
+        const link = document.createElement("a"); link.className = "download"; link.href = url; link.download = outputName; link.textContent = "下载文件";
+        row.append(info, link); resultList.append(row); results.style.display = "block";
+      }
+      async function convertEntry(entry, index, total) {
+        const label = `正在处理 ${index + 1}/${total}：${entry.file.name}`;
+        entry.state = "working"; entry.message = "正在解密…"; renderFiles();
+        setProgress(label, 0); progressWrap.style.display = "block";
+        try {
+          const header = await decryptHeader(entry.file);
+          const audio = await decryptAudio(entry.file, header, p => setProgress(label, p * (transcodeFlacOption.checked ? 82 : 100)));
+          const first = new Uint8Array(await audio.slice(0, 16).arrayBuffer());
+          const isMp3 = first[0] === 0x49 && first[1] === 0x44 && first[2] === 0x33 || (first.length >= 2 && first[0] === 0xff && (first[1] & 0xe0) === 0xe0);
+          const isFlac = first[0] === 0x66 && first[1] === 0x4c && first[2] === 0x61 && first[3] === 0x43;
+          const stem = entry.file.name.replace(/\.ncm$/i, "");
+          if (isMp3) {
+            addResult(`${stem}.mp3`, audio, "已解密为 MP3");
+            entry.state = "success"; entry.message = "转换完成";
+          } else if (isFlac) {
+            if (transcodeFlacOption.checked) {
+              try {
+                const mp3 = await transcodeToMp3(audio);
+                addResult(`${stem}.mp3`, mp3, "FLAC 已转为高音质 VBR MP3");
+                entry.state = "success"; entry.message = "已转为 MP3";
+              } catch (error) {
+                addResult(`${stem}.flac`, audio, "已解密为 FLAC；MP3 转码未完成");
+                entry.state = "success"; entry.message = "已解密，未转 MP3";
+                tell(error.message || "转码未完成，已提供 FLAC 下载");
+              }
+            } else {
+              addResult(`${stem}.flac`, audio, "已解密，保留 FLAC 音质");
+              entry.state = "success"; entry.message = "已解密为 FLAC";
+            }
+          } else {
+            throw new Error(`已解密，但暂不支持该音频编码（文件头：${[...first.slice(0, 8)].map(x => x.toString(16).padStart(2,"0")).join(" ")}）。`);
+          }
+        } catch (error) {
+          entry.state = "error"; entry.message = "转换失败";
+          const row = document.createElement("div"); row.className = "result-row";
+          const info = document.createElement("div"); info.className = "result-info";
+          const title = document.createElement("div"); title.className = "result-name"; title.textContent = entry.file.name;
+          const desc = document.createElement("div"); desc.className = "result-note"; desc.style.color = "var(--red)"; desc.textContent = error.message || "转换失败";
+          info.append(title, desc); row.append(info); resultList.append(row); results.style.display = "block";
+        }
+        renderFiles();
+      }
+      convertBtn.addEventListener("click", async () => {
+        const todo = entries.filter(e => e.state === "ready");
+        if (!todo.length || busy) return;
+        busy = true; convertBtn.disabled = true; resultList.replaceChildren(); results.style.display = "none";
+        progressWrap.style.display = "block";
+        for (let i = 0; i < todo.length; i++) await convertEntry(todo[i], i, todo.length);
+        busy = false; setProgress("处理完成", 100); renderFiles();
+      });
+      window.addEventListener("beforeunload", () => { for (const url of liveUrls) URL.revokeObjectURL(url); });
+    })();
+  </script>
+</body>
+</html>
